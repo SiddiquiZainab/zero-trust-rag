@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+*.env
+
+# Data (do not copy into image)
+data
+qdrant_data
+ollama_data
+
+# Tests
+tests
+
+# Documentation
+README.md
+docs
+
+# Docker
+docker-compose.yml
+Dockerfile.*
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Logs
+*.log
+logs
+
+# Misc
+*.bak
+*.tmp

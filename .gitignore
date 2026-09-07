@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data (do not commit raw documents or generated data)
+data/raw_documents/
+data/metadata_mapping.json
+qdrant_data/
+ollama_data/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+*.bak
+*.tmp
