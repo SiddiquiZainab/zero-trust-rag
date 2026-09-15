@@ -1,0 +1,9 @@
+TITLE: Engineering Coding Standards and Guidelines
+ROLE: engineering
+CLEARANCE: 1
+
+Overview:
+All engineering team members must adhere to Clean Code principles. Python code must conform to PEP 8 formatting standards. All new pull requests require passing unit test suites using pytest and static analysis using Ruff.
+
+Security & Environment Variables:
+Never commit raw API keys or database credentials to version control. Always retrieve environment parameters using pydantic-settings or python-dotenv from the root configuration file.

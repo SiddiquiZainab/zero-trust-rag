@@ -1,0 +1,3 @@
+Zero-Trust Ingress Standard:
+All services running in Kubernetes must use mutual TLS (mTLS) via Istio sidecars.
+Plain HTTP connections inside the cluster perimeter are prohibited.

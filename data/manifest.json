@@ -1,0 +1,26 @@
+[
+  {
+    "filename": "security_policy.txt",
+    "title": "Corporate Security Policy and Guidelines",
+    "allowed_roles": ["public", "engineering", "hr"],
+    "clearance_level": 0
+  },
+  {
+    "filename": "engineering_coding_standards.txt",
+    "title": "Engineering Coding Standards and Guidelines",
+    "allowed_roles": ["engineering"],
+    "clearance_level": 1
+  },
+  {
+    "filename": "server_deployment_rules.txt",
+    "title": "Server Infrastructure and Deployment Rules",
+    "allowed_roles": ["engineering"],
+    "clearance_level": 1
+  },
+  {
+    "filename": "database_architecture.txt",
+    "title": "Database Architecture and Vector Storage Guidelines",
+    "allowed_roles": ["engineering"],
+    "clearance_level": 1
+  }
+]

@@ -1,0 +1,9 @@
+TITLE: Server Infrastructure and Deployment Rules
+ROLE: engineering
+CLEARANCE: 1
+
+Overview:
+Deployments to production are managed via GitHub Actions CI/CD workflows. Developers pushing to the main branch must ensure all integration tests pass before requesting a review.
+
+Server Standards & Access:
+Production instances run on containerized Docker infrastructure behind an NGINX reverse proxy. Engineers with Level 1 clearance can access staging logs via Docker Compose. Direct SSH access to production clusters requires Level 3 DevOps authorization.
