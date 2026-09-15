@@ -1,0 +1,9 @@
+TITLE: Database Architecture and Vector Storage Guidelines
+ROLE: engineering
+CLEARANCE: 1
+
+Overview:
+Our zero-trust RAG platform utilizes Qdrant for vector retrieval and PostgreSQL for user metadata and authentication persistence.
+
+Payload Metadata Requirements:
+Every vector payload uploaded to Qdrant must contain the metadata fields: payload_id, source, allowed_roles (list of strings), and clearance_level (integer). Filters must strictly compare these fields against user token attributes before context generation.

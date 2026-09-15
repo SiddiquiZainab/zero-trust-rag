@@ -1,5 +1,8 @@
 FROM ollama/ollama:latest
 
+ENV OLLAMA_HOST=0.0.0.0
+ENV OLLAMA_KEEP_ALIVE=-1
+
 EXPOSE 11434
 
-CMD ["ollama", "serve"]
+ENTRYPOINT ["ollama", "serve"]

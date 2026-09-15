@@ -1,59 +1,144 @@
-# Git
+# ==========================================
+# 1. Version Control & IDEs
+# ==========================================
 .git
 .gitignore
-
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-venv
-.venv
-pip-log.txt
-pip-delete-this-directory.txt
-
-# IDE
-.vscode
-.idea
+.dockerignore
+.vscode/
+.idea/
+*.sublime-workspace
 *.swp
 *.swo
+*~
 
-# OS
+# ==========================================
+# 2. Operating System Files
+# ==========================================
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
-# Environment
+# ==========================================
+# 3. Environments & Secrets
+# ==========================================
 .env
 .env.*
 *.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+Pipfile.lock
+poetry.lock
+.pdm.toml
 
-# Data (do not copy into image)
-data
-qdrant_data
-ollama_data
+# ==========================================
+# 4. Project Heavy Data & Local State
+# ==========================================
+data/
+qdrant_data/
+ollama_data/
+db.sqlite3
+db.sqlite3-journal
 
-# Tests
-tests
-
-# Documentation
+# ==========================================
+# 5. Documentation & Tests
+# ==========================================
 README.md
-docs
+docs/
+tests/
+site/
 
-# Docker
-docker-compose.yml
-Dockerfile.*
+# ==========================================
+# 6. Docker & Orchestration
+# ==========================================
+docker-compose*.yml
+Dockerfile*
 
-# Build artifacts
-dist
-build
-*.egg-info
+# ==========================================
+# 7. Python Artifacts & Caches
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+__pypackages__/
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Logs
+# ==========================================
+# 8. Testing, Coverage & Quality Tools
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+cover/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# ==========================================
+# 9. Logs & Temporary Files
+# ==========================================
 *.log
-logs
-
-# Misc
+logs/
+pip-log.txt
+pip-delete-this-directory.txt
 *.bak
 *.tmp
+
+# ==========================================
+# 10. Notebooks & App Frameworks
+# ==========================================
+.streamlit/
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+instance/
+.webassets-cache/
+.scrapy/
+.pybuilder/
+target/
+celerybeat-schedule
+celerybeat.pid
+*.sage.py
+.spyderproject
+.spyproject
+.ropeproject
+cython_debug/
