@@ -2,8 +2,10 @@ import base64
 import json
 import requests
 import streamlit as st
+import os
 
-API_URL = "http://127.0.0.1:8000"
+# Fetch API URL from environment variable; default to service name on Docker network
+API_URL = os.getenv("API_URL", "http://rag_api:8000")
 
 st.set_page_config(page_title="Zero-Trust RBAC RAG", page_icon="🛡️", layout="wide")
 
@@ -20,7 +22,7 @@ def decode_jwt_payload(token: str) -> dict:
         return {}
 
 
-# Initialize Session State for JWT and User Info
+# Initialize Session State
 if "token" not in st.session_state:
     st.session_state["token"] = None
 if "messages" not in st.session_state:
@@ -34,7 +36,7 @@ with st.sidebar:
 
     if not st.session_state["token"]:
         st.subheader("Login")
-        username = st.text_input("Username", value="alice_eng")
+        username = st.text_input("Username", value="admin_user")
         password = st.text_input("Password", type="password", value="password123")
 
         if st.button("Log In"):
@@ -63,7 +65,6 @@ with st.sidebar:
     else:
         st.success(f"Logged in as: **{st.session_state['username']}**")
 
-        # --- DISPLAY ACTIVE ROLE & CLEARANCE LEVEL ---
         if st.session_state.get("user_info"):
             roles = st.session_state["user_info"].get("roles", [])
             clearance = st.session_state["user_info"].get("clearance", "N/A")
@@ -83,65 +84,151 @@ with st.sidebar:
             st.session_state["user_info"] = None
             st.rerun()
 
-# --- MAIN CHAT INTERFACE ---
+# --- MAIN INTERFACE ---
 st.title("Enterprise RBAC Knowledge Base")
 
 if not st.session_state["token"]:
-    st.info("👈 Please log in via the sidebar to start asking questions.")
+    st.info("👈 Please log in via the sidebar to access the platform.")
 else:
-    # Display previous messages
-    for msg in st.session_state["messages"]:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-            if "sources" in msg and msg["sources"]:
-                with st.expander("🔍 View Retrieved Sources (RBAC Filtered)"):
-                    for src in msg["sources"]:
-                        st.code(src, language="text")
+    tab1, tab2 = st.tabs(["💬 Knowledge Base Chat", "📤 Admin Document Upload"])
 
-    # User Input
-    if user_query := st.chat_input("Ask a question about internal policies..."):
-        # Append User Message
-        st.session_state["messages"].append(
-            {"role": "user", "content": user_query}
-        )
-        with st.chat_message("user"):
-            st.write(user_query)
+    # ==========================================
+    # TAB 1: CHAT INTERFACE
+    # ==========================================
+    with tab1:
+        # Initialize processing state
+        if "processing" not in st.session_state:
+            st.session_state["processing"] = False
 
-        # Call FastAPI Endpoint with Bearer Token
-        headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+        # 1. Render all existing messages in chat history
+        for msg in st.session_state["messages"]:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+                if "sources" in msg and msg["sources"]:
+                    with st.expander("🔍 View Retrieved Sources (RBAC Filtered)"):
+                        for src in msg["sources"]:
+                            st.code(src, language="text")
 
-        with st.chat_message("assistant"):
-            with st.spinner("Retrieving authorized context & generating answer..."):
-                res = requests.post(
-                    f"{API_URL}/query",
-                    json={"query": user_query},
-                    headers=headers,
+        # 2. Render input box ONLY when not processing a query
+        if not st.session_state["processing"]:
+            if user_query := st.chat_input("Ask a question about internal policies..."):
+                # Append query to state and set processing state
+                st.session_state["messages"].append(
+                    {"role": "user", "content": user_query}
                 )
+                st.session_state["processing"] = True
+                st.rerun()
 
-                if res.status_code == 200:
-                    data = res.json()
-                    answer = data["answer"]
-                    sources = data.get("accessed_documents", [])
+        # 3. Handle processing state: input box is hidden, show loading spinner & call API
+        else:
+            headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+            last_query = st.session_state["messages"][-1]["content"]
 
-                    st.write(answer)
-                    if sources:
-                        with st.expander(
-                            "🔍 View Retrieved Sources (RBAC Filtered)"
-                        ):
-                            for src in sources:
-                                st.code(src, language="text")
+            with st.chat_message("assistant"):
+                with st.spinner("Retrieving authorized context & generating answer..."):
+                    res = requests.post(
+                        f"{API_URL}/query",
+                        json={"query": last_query},
+                        headers=headers,
+                    )
+
+                    if res.status_code == 200:
+                        data = res.json()
+                        answer = data["answer"]
+                        sources = data.get("accessed_documents", [])
+
+                        st.write(answer)
+                        if sources:
+                            with st.expander(
+                                    "🔍 View Retrieved Sources (RBAC Filtered)"
+                            ):
+                                for src in sources:
+                                    st.code(src, language="text")
+                        else:
+                            st.warning(
+                                "⚠️ No documents retrieved (either non-existent or restricted by clearance level)."
+                            )
+
+                        # Save response to history
+                        st.session_state["messages"].append(
+                            {
+                                "role": "assistant",
+                                "content": answer,
+                                "sources": sources,
+                            }
+                        )
                     else:
-                        st.warning(
-                            "⚠️ No documents retrieved (either non-existent or restricted by clearance level)."
+                        st.error(f"Error {res.status_code}: Could not fetch response.")
+
+            # Reset processing state and rerun to restore the input box at the bottom
+            st.session_state["processing"] = False
+            st.rerun()
+
+    # ==========================================
+    # TAB 2: ADMIN DOCUMENT UPLOAD
+    # ==========================================
+    with tab2:
+        st.subheader("🔒 Enterprise Document Ingestion Management")
+
+        user_roles = st.session_state.get("user_info", {}).get("roles", [])
+
+        if "admin" not in user_roles:
+            st.error(
+                "⛔ Access Denied: Only administrators can upload documents and assign target RBAC policies."
+            )
+        else:
+            st.write(
+                "Upload document `.txt` or `.md` files to update the manifest and auto-index into Qdrant."
+            )
+
+            uploaded_file = st.file_uploader(
+                "Select Document File", type=["txt", "md"]
+            )
+            target_roles_input = st.text_input(
+                "Target Allowed Roles (comma-separated)",
+                value="engineering",
+                help="e.g. engineering, hr, executive",
+            )
+            clearance_input = st.number_input(
+                "Required Clearance Level",
+                min_value=1,
+                max_value=5,
+                value=1,
+            )
+
+            if st.button("Index Document to Vector Store", type="primary"):
+                if uploaded_file is None:
+                    st.warning("Please select a file first.")
+                else:
+                    headers = {
+                        "Authorization": f"Bearer {st.session_state['token']}"
+                    }
+                    files = {
+                        "file": (
+                            uploaded_file.name,
+                            uploaded_file.getvalue(),
+                            uploaded_file.type,
+                        )
+                    }
+                    data_payload = {
+                        "target_roles": target_roles_input,
+                        "clearance_level": str(clearance_input),
+                    }
+
+                    with st.spinner(
+                        "Updating manifest and processing chunks into Qdrant..."
+                    ):
+                        res = requests.post(
+                            f"{API_URL}/upload",
+                            files=files,
+                            data=data_payload,
+                            headers=headers,
                         )
 
-                    # Save to History
-                    st.session_state["messages"].append(
-                        {
-                            "role": "assistant",
-                            "content": answer,
-                            "sources": sources,
-                        }
-                    )
-                else:
-                    st.error(f"Error {res.status_code}: Could not fetch response.")
+                        if res.status_code == 200:
+                            res_json = res.json()
+                            st.success(
+                                f"Successfully indexed **{res_json['filename']}** and updated `manifest.json`!"
+                            )
+                        else:
+                            st.error(f"Upload failed ({res.status_code}): {res.text}")

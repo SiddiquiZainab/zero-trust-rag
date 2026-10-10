@@ -1,0 +1,12 @@
+DOCUMENT_ID: DOC-ENG-001
+TITLE: Next-Gen Vector Storage & Microservices Architecture
+AUTHOR: Lead Systems Architect
+
+1. System Core Overview
+Our production backend is transitioning from a monolithic setup to a distributed microservice architecture. The vector retrieval layer relies on Qdrant, deployed in high-availability mode with payload indexing enabled for metadata parameters: allowed_roles and clearance_level.
+
+2. Database Credentials & Storage
+Primary application data resides in PostgreSQL with read-replicas handling non-blocking queries. Developers accessing local test environments must populate their .env configurations using localhost:6333 for vector access and localhost:5432 for relational storage.
+
+3. Deployment Guidelines
+All container builds must pass automated security vulnerability scanning before pushing image tags to the private registry. Docker contexts must exclude sensitive runtime state files like .venv and secrets.

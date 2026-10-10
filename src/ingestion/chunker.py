@@ -1,31 +1,49 @@
+import os
 import uuid
 from typing import List
-from sentence_transformers import SentenceTransformer
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+from sentence_transformers import SentenceTransformer
 
 # --- Configuration ---
-QDRANT_URL = "http://localhost:6333"
-COLLECTION_NAME = "zero_trust_documents"
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
+QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "enterprise_rbac_docs")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-small-en-v1.5")
 VECTOR_DIMENSION = 384  # BGE-small outputs 384-dimensional vectors
 
-# --- Initialize Clients ---
-print(f"Loading embedding model: {EMBEDDING_MODEL_NAME}...")
-encoder = SentenceTransformer(EMBEDDING_MODEL_NAME)
-qdrant = QdrantClient(url=QDRANT_URL)
+_encoder = None
+_qdrant = None
+
+
+def _get_encoder():
+    global _encoder
+    if _encoder is None:
+        print(f"Loading embedding model: {EMBEDDING_MODEL_NAME}...")
+        _encoder = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return _encoder
+
+
+def _get_qdrant():
+    global _qdrant
+    if _qdrant is None:
+        _qdrant = QdrantClient(url=QDRANT_URL, check_compatibility=False)
+    return _qdrant
 
 
 def setup_qdrant_collection():
     """Ensure the Qdrant collection exists with the correct vector configuration."""
+    qdrant = _get_qdrant()
     if not qdrant.collection_exists(COLLECTION_NAME):
         qdrant.create_collection(
             collection_name=COLLECTION_NAME,
             vectors_config=models.VectorParams(
                 size=VECTOR_DIMENSION,
-                distance=models.Distance.COSINE
-            )
+                distance=models.Distance.COSINE,
+            ),
         )
         print(f"Created collection: {COLLECTION_NAME}")
     else:
@@ -33,25 +51,27 @@ def setup_qdrant_collection():
 
 
 def ingest_document(
-        text: str,
-        doc_id: str,
-        allowed_roles: List[str],
-        clearance_level: int,
-        source_name: str
+    text: str,
+    doc_id: str,
+    allowed_roles: List[str],
+    clearance_level: int,
+    source_name: str,
 ):
     """Chunks text, embeds it, and uploads to Qdrant with RBAC payloads."""
+
+    encoder = _get_encoder()
+    qdrant = _get_qdrant()
 
     # 1. Chunking
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=512,
         chunk_overlap=50,
-        separators=["\n\n", "\n", ".", " ", ""]
+        separators=["\n\n", "\n", ".", " ", ""],
     )
     chunks = splitter.split_text(text)
     print(f"Split document '{source_name}' into {len(chunks)} chunks.")
 
     # 2. Embedding
-    # SentenceTransformer handles batching automatically for lists of strings
     embeddings = encoder.encode(chunks, convert_to_tensor=False)
 
     # 3. Payload Construction & Upload
@@ -59,30 +79,25 @@ def ingest_document(
     for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         point_id = str(uuid.uuid4())
 
-        # Attach mandatory access control attributes
         payload = {
             "doc_id": doc_id,
             "chunk_index": i,
             "text": chunk,
             "source": source_name,
-            # RBAC Metadata
             "allowed_roles": allowed_roles,
-            "clearance_level": clearance_level
+            "clearance_level": clearance_level,
         }
 
         points.append(
             models.PointStruct(
                 id=point_id,
-                vector=embedding.tolist(),
-                payload=payload
+                vector=embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
+                payload=payload,
             )
         )
 
     # 4. Upsert to Qdrant
-    qdrant.upsert(
-        collection_name=COLLECTION_NAME,
-        points=points
-    )
+    qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
     print(f"Successfully ingested {len(points)} vectors for '{source_name}'.\n")
 
 

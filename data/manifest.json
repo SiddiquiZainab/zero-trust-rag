@@ -1,26 +1,73 @@
 [
-  {
-    "filename": "security_policy.txt",
-    "title": "Corporate Security Policy and Guidelines",
-    "allowed_roles": ["public", "engineering", "hr"],
-    "clearance_level": 0
-  },
-  {
-    "filename": "engineering_coding_standards.txt",
-    "title": "Engineering Coding Standards and Guidelines",
-    "allowed_roles": ["engineering"],
-    "clearance_level": 1
-  },
-  {
-    "filename": "server_deployment_rules.txt",
-    "title": "Server Infrastructure and Deployment Rules",
-    "allowed_roles": ["engineering"],
-    "clearance_level": 1
-  },
-  {
-    "filename": "database_architecture.txt",
-    "title": "Database Architecture and Vector Storage Guidelines",
-    "allowed_roles": ["engineering"],
-    "clearance_level": 1
-  }
+    {
+        "filename": "security_policy.txt",
+        "title": "Corporate Security Policy and Guidelines",
+        "allowed_roles": [
+            "public",
+            "engineering",
+            "hr"
+        ],
+        "clearance_level": 0
+    },
+    {
+        "filename": "engineering_coding_standards.txt",
+        "title": "Engineering Coding Standards and Guidelines",
+        "allowed_roles": [
+            "engineering"
+        ],
+        "clearance_level": 1
+    },
+    {
+        "filename": "server_deployment_rules.txt",
+        "title": "Server Infrastructure and Deployment Rules",
+        "allowed_roles": [
+            "engineering"
+        ],
+        "clearance_level": 1
+    },
+    {
+        "filename": "database_architecture.txt",
+        "title": "Database Architecture and Vector Storage Guidelines",
+        "allowed_roles": [
+            "engineering"
+        ],
+        "clearance_level": 1
+    },
+    {
+        "filename": "engineering_architecture_v1.txt",
+        "title": "Next-Gen Vector Storage and Microservices Architecture",
+        "allowed_roles": [
+            "engineering"
+        ],
+        "clearance_level": 1
+    },
+    {
+        "filename": "executive_roadmap_2026.txt",
+        "title": "Confidential M&A and Strategic Expansion Plan 2026",
+        "allowed_roles": [
+            "executive"
+        ],
+        "clearance_level": 5
+    },
+    {
+        "filename": "hr_compensation_policy.txt",
+        "title": "Q4 Executive Band Compensation and Equity Matrix",
+        "allowed_roles": [
+            "hr"
+        ],
+        "clearance_level": 4
+    },
+    {
+        "filename": "data_hr_leave_policy_006.txt",
+        "allowed_roles": [
+            "hr",
+            "engineering",
+            "finance",
+            "legal",
+            "executive",
+            "admin"
+        ],
+        "clearance_level": 1,
+        "uploaded_by": "admin_user"
+    }
 ]

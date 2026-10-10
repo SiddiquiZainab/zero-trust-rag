@@ -1,6 +1,8 @@
-from typing import List, Dict, Any
-from src.retrieval.hybrid_search import HybridSearchEngine
+from typing import Any, Dict, List, Optional
+
 from src.engine.llm import OllamaLLM
+from src.retrieval.hybrid_search import HybridSearchEngine
+
 
 class RAGChain:
     SYSTEM_PROMPT = """You are a Zero-Trust enterprise AI assistant.
