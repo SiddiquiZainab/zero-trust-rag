@@ -1,19 +1,41 @@
-from typing import List, Dict, Any
-from sentence_transformers import SentenceTransformer
+import os
+from typing import Any, Dict, List, Optional
+
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+from sentence_transformers import SentenceTransformer
+
 
 class QdrantVectorStore:
     def __init__(
         self,
-        qdrant_url: str = "http://localhost:6333",
-        collection_name: str = "zero_trust_documents",
-        embedding_model_name: str = "BAAI/bge-small-en-v1.5"
+        qdrant_url: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        embedding_model_name: Optional[str] = None,
     ):
-        self.qdrant_url = qdrant_url
-        self.collection_name = collection_name
-        self.client = QdrantClient(url=qdrant_url, check_compatibility=False)
-        self.encoder = SentenceTransformer(embedding_model_name)
+        self.qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+        self.qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
+        self.qdrant_url = qdrant_url or f"http://{self.qdrant_host}:{self.qdrant_port}"
+        self.collection_name = collection_name or os.getenv(
+            "QDRANT_COLLECTION_NAME", "enterprise_rbac_docs"
+        )
+        self.embedding_model_name = embedding_model_name or os.getenv(
+            "EMBEDDING_MODEL_NAME", "BAAI/bge-small-en-v1.5"
+        )
+        self._client: Optional[QdrantClient] = None
+        self._encoder: Optional[SentenceTransformer] = None
+
+    @property
+    def client(self) -> QdrantClient:
+        if self._client is None:
+            self._client = QdrantClient(url=self.qdrant_url, check_compatibility=False)
+        return self._client
+
+    @property
+    def encoder(self) -> SentenceTransformer:
+        if self._encoder is None:
+            self._encoder = SentenceTransformer(self.embedding_model_name)
+        return self._encoder
 
     def _build_rbac_filter(self, user_roles: List[str], user_clearance: int) -> models.Filter:
         """

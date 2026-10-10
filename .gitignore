@@ -28,7 +28,6 @@ Thumbs.db
 
 # Data (do not commit raw documents or generated data)
 data/raw_documents/
-data/metadata_mapping.json
 qdrant_data/
 ollama_data/
 

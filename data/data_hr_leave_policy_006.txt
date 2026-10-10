@@ -1,0 +1,92 @@
+DOCUMENT_ID: DOC-HR-LEAVE-006
+TITLE: Enterprise Global Leave and Time-Off Policy 2026
+DOMAIN: HR
+TAGS: Time-Off, Employee Benefits, HR Policy, Compliance
+CLEARANCE REQUIRED: Level 1
+ALLOWED ROLES: hr, engineering, finance, legal, executive, admin
+
+================================================================================
+SECTION 1: PURPOSE, SCOPE & GOVERNANCE PRINCIPLES
+================================================================================
+1.1 Introduction
+The Enterprise Global Leave and Time-Off Policy establishes a standardized, equitable, and transparent framework for managing employee absences, rest periods, medical leave, and special circumstances. Our organization recognizes that comprehensive rest and work-life balance are foundational to sustainable high performance, innovation, and psychological safety. This policy applies uniformly to all full-time and permanent part-time personnel across all global operational hubs, including the Riyadh Tech Hub, Dubai Cloud Zone, Singapore Node, Frankfurt DC-2, and Zurich Data Vault.
+
+1.2 Scope and Applicability
+Unless explicitly stated otherwise in local statutory employment agreements—which shall supersede company guidelines where local labor laws mandate superior benefits—this policy governs all requests for time away from work. Contractors and temporary personnel must refer to their specific statement of work or vendor agreements regarding time-off compensation. 
+
+1.3 Core Governance Principles
+- Equity and Consistency: All leave applications must be reviewed impartially by line managers and People Operations without bias or discriminatory practices.
+- Operational Continuity: While employee rest is heavily prioritized, team leads must maintain balanced staffing schedules to ensure zero disruption to client deliverables and zero-trust system uptime.
+- Compliance Mandate: All leave tracking, recordkeeping, and medical documentations must comply with regional data privacy regulations, including GDPR and local sovereign data protection laws.
+
+================================================================================
+SECTION 2: ANNUAL PAID TIME OFF (PTO) & VACATION LEAVE
+================================================================================
+2.1 Accrual Structure
+All full-time employees accrue Annual Paid Time Off (PTO) on a monthly basis starting from their official start date. 
+- Standard Accrual Rate: Employees accrue 2.08 days per month, resulting in a total of 25 business days of paid vacation per calendar year.
+- Seniority Bonus: Employees who complete three (3) continuous years of service receive an additional 3 days per year, capping annual accrual at 28 business days.
+
+2.2 Scheduling and Advance Notice
+Employees are encouraged to plan their rest periods well in advance to support team capacity planning:
+- Standard Requests: Vacation requests exceeding five (5) consecutive business days must be submitted through the enterprise HRIS portal at least thirty (30) calendar days prior to the proposed start date.
+- Short Requests: Absences of one to four days require a minimum of five (5) business days' notice.
+- Peak Periods: During critical quarterly closing periods or major product rollout windows (e.g., end of Q4 financial audit or system migration events), PTO approvals may be restricted by department directors to ensure team availability.
+
+2.3 Rollover and Encashment Rules
+- Carryover Limit: A maximum of five (5) unused PTO days may be carried over into the subsequent calendar year. All carried-over days must be utilized within the first quarter (by March 31st) of that year or they will automatically expire.
+- Encashment: Accrued PTO cannot be encashed or paid out during active employment unless required by mandatory local employment legislation upon termination or resignation.
+
+================================================================================
+SECTION 3: SICK LEAVE & MEDICAL CIRCUMSTANCES
+================================================================================
+3.1 Provision of Sick Leave
+Physical and mental health are paramount. Employees are entitled to up to fifteen (15) paid sick days per calendar year for minor illnesses, medical appointments, or recovery periods that do not require extended hospitalization. Sick leave does not roll over from year to year and cannot be paid out upon separation.
+
+3.2 Notification and Documentation Requirements
+- Notification: If an employee is unable to report to work due to illness, they must notify their direct supervisor and log the absence in the HR portal within two (2) hours of their standard shift start time.
+- Medical Certificates: For consecutive sick absences exceeding three (3) working days, an official medical certificate or doctor's note issued by a licensed healthcare provider must be uploaded to the secure HRIS system within forty-eight (48) hours of returning to work.
+- Extended Medical Leave: Conditions requiring continuous absence exceeding two (2) weeks transition into Extended Medical Leave, which may involve short-term disability insurance integration, occupational health reviews, and specialized medical clearance prior to workplace reentry.
+
+================================================================================
+SECTION 4: PARENTAL, MATERNITY & PATERNITY LEAVE
+================================================================================
+4.1 Maternity and Primary Caregiver Leave
+Primary caregivers are eligible for up to sixteen (16) weeks of fully paid maternity and primary adoption leave. This leave can commence up to four (4) weeks prior to the expected date of delivery. 
+
+4.2 Paternity and Secondary Caregiver Leave
+Secondary caregivers are entitled to four (4) weeks of fully paid consecutive or intermittent leave, to be taken within the first twelve (12) months following the birth or legal adoption of a child.
+
+4.3 Return-to-Work Flexibility
+To support working parents during the transition back to professional duties, primary caregivers may request a phased return schedule (e.g., 50% working hours for the first four weeks following leave completion at 100% base salary compensation).
+
+================================================================================
+SECTION 5: SABBATICAL & UNPAID LEAVE OF ABSENCE
+================================================================================
+5.1 Sabbatical Program
+Full-time employees who reach five (5) years of continuous dedicated service become eligible to apply for a four-week paid sabbatical leave. Sabbaticals are designed to encourage lifelong learning, personal enrichment, or extended travel. Applications must include a professional development or personal enrichment outline and require approval from the Executive People Committee.
+
+5.2 Unpaid Leave of Absence (LOA)
+In exceptional personal circumstances—such as caring for an immediate family member with a serious health condition or pursuing specialized educational milestones—employees may apply for an Unpaid Leave of Absence for up to twelve (12) weeks. During an approved LOA, health insurance benefits are maintained by the organization, though PTO and seniority accruals are paused for the duration of the unpaid absence.
+
+================================================================================
+SECTION 6: PUBLIC HOLIDAYS & REGIONAL SCHEDULING
+================================================================================
+6.1 Regional Holiday Calendars
+Because our enterprise operates across multi-jurisdictional nodes, employees observe the official public holiday calendar corresponding to their primary contractual work location (e.g., UAE National Holidays for Dubai/Riyadh, Federal Holidays for US remote personnel, or Statutory Holidays for European hubs).
+
+6.2 Working on Public Holidays
+If business-critical operational maintenance requires an employee to work on an official public holiday (such as weekend emergency engineering deployments in Frankfurt DC-2), they shall be compensated with equivalent compensatory time off ("comp time") at a 1.5x multiplier, to be used within sixty (60) days.
+
+================================================================================
+SECTION 7: ADMINISTRATIVE COMPLIANCE & AUDIT TRAIL
+================================================================================
+7.1 HRIS Portal Submissions
+All leave requests, approvals, medical certifications, and balance verifications must be processed digitally through the centralized HR portal. Verbal or informal email agreements between team members and managers do not constitute official approved leave.
+
+7.2 Audit Trail and Compliance Monitoring
+People Operations conducts quarterly audits of leave balances and approval logs to ensure compliance with labor standards and equitable distribution of time off. Any fraudulent reporting of sick leave or intentional circumvention of approval workflows constitutes a policy violation subject to internal disciplinary review.
+
+- Document ID: DOC-HR-LEAVE-006
+- Security Classification: Level 1 (General Internal Access)
+- Target Roles: hr, engineering, finance, legal, executive, admin
