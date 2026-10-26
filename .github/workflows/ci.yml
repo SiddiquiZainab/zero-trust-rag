@@ -20,5 +20,7 @@ jobs:
           cache-dependency-path: requirements-test.txt
       - name: Install lightweight test dependencies
         run: python -m pip install -r requirements-test.txt
+      - name: Compile application modules
+        run: python -m compileall -q src ui
       - name: Run deterministic retrieval tests
         run: python -m pytest -q tests/test_hybrid_retrieval_unit.py
