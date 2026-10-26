@@ -1,0 +1,5 @@
+# Lightweight deterministic retrieval/policy unit-test dependencies.
+# This does not install PyTorch, an embedding model, or an LLM runtime.
+pytest>=8.0.0
+qdrant-client>=1.10.0
+rank-bm25>=0.2.2
