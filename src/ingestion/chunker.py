@@ -7,13 +7,12 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from sentence_transformers import SentenceTransformer
 
-# --- Configuration ---
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "enterprise_rbac_docs")
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-small-en-v1.5")
-VECTOR_DIMENSION = 384  # BGE-small outputs 384-dimensional vectors
+VECTOR_DIMENSION = 384
 
 _encoder = None
 _qdrant = None
@@ -35,7 +34,7 @@ def _get_qdrant():
 
 
 def setup_qdrant_collection():
-    """Ensure the Qdrant collection exists with the correct vector configuration."""
+    """Ensure the Qdrant collection exists with the expected vector configuration."""
     qdrant = _get_qdrant()
     if not qdrant.collection_exists(COLLECTION_NAME):
         qdrant.create_collection(
@@ -57,80 +56,88 @@ def ingest_document(
     clearance_level: int,
     source_name: str,
 ):
-    """Chunks text, embeds it, and uploads to Qdrant with RBAC payloads."""
+    """Chunk, embed and replace a document's indexed chunks with its current policy."""
+    if not text.strip():
+        raise ValueError("Cannot index an empty document.")
+    if not allowed_roles:
+        raise ValueError("At least one allowed role is required.")
+    if not 1 <= clearance_level <= 5:
+        raise ValueError("clearance_level must be between 1 and 5.")
 
     encoder = _get_encoder()
     qdrant = _get_qdrant()
 
-    # 1. Chunking
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=512,
         chunk_overlap=50,
         separators=["\n\n", "\n", ".", " ", ""],
     )
     chunks = splitter.split_text(text)
+    if not chunks:
+        raise ValueError("The document produced no indexable chunks.")
     print(f"Split document '{source_name}' into {len(chunks)} chunks.")
 
-    # 2. Embedding
     embeddings = encoder.encode(chunks, convert_to_tensor=False)
-
-    # 3. Payload Construction & Upload
     points = []
-    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        point_id = str(uuid.uuid4())
-
-        payload = {
-            "doc_id": doc_id,
-            "chunk_index": i,
-            "text": chunk,
-            "source": source_name,
-            "allowed_roles": allowed_roles,
-            "clearance_level": clearance_level,
-        }
-
+    for index, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         points.append(
             models.PointStruct(
-                id=point_id,
+                id=str(uuid.uuid4()),
                 vector=embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
-                payload=payload,
+                payload={
+                    "doc_id": doc_id,
+                    "chunk_index": index,
+                    "text": chunk,
+                    "source": source_name,
+                    "allowed_roles": allowed_roles,
+                    "clearance_level": clearance_level,
+                },
             )
         )
 
-    # 4. Upsert to Qdrant
-    qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+    # Important for re-uploads: remove prior chunks with this stable doc_id before
+    # inserting the new policy. Otherwise old chunks can retain stale permissions.
+    qdrant.delete(
+        collection_name=COLLECTION_NAME,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="doc_id",
+                        match=models.MatchValue(value=doc_id),
+                    )
+                ]
+            )
+        ),
+        wait=True,
+    )
+    qdrant.upsert(collection_name=COLLECTION_NAME, points=points, wait=True)
     print(f"Successfully ingested {len(points)} vectors for '{source_name}'.\n")
 
 
 if __name__ == "__main__":
     setup_qdrant_collection()
-
-    # --- Sample Execution ---
     sample_hr_doc = """
     CONFIDENTIAL: Q3 Bonus Restructuring.
-    Starting Q3, management bonuses will be tied to team retention metrics. 
+    Starting Q3, management bonuses will be tied to team retention metrics.
     HR personnel are required to finalize the payout matrix by November 1st.
     """
-
     sample_eng_doc = """
     Architecture Decision Record (ADR) 44:
-    We are migrating our internal microservices to use gRPC over REST. 
+    We are migrating our internal microservices to use gRPC over REST.
     All backend engineers must update their endpoints by the end of the sprint.
     """
-
-    # Ingest HR Document (Restricted to HR and Management, High Clearance)
     ingest_document(
         text=sample_hr_doc,
         doc_id="doc-hr-001",
         allowed_roles=["hr", "management"],
         clearance_level=4,
-        source_name="q3_bonus_policy.txt"
+        source_name="q3_bonus_policy.txt",
     )
-
-    # Ingest Engineering Document (Broader access, Lower Clearance)
     ingest_document(
         text=sample_eng_doc,
         doc_id="doc-eng-044",
         allowed_roles=["engineering", "management"],
         clearance_level=2,
-        source_name="adr_44_grpc.txt"
+        source_name="adr_44_grpc.txt",
     )

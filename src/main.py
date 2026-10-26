@@ -2,6 +2,8 @@ import hmac
 import json
 import os
 import re
+import tempfile
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,12 +36,11 @@ def _required_config_value(name: str, minimum_length: int) -> str:
     return value
 
 
-# Fail at startup rather than silently signing tokens with a public default.
 SECRET_KEY = _required_config_value("JWT_SECRET_KEY", 32)
 
 
 def _build_demo_users() -> dict:
-    """Load local demo credentials from environment; do not ship shared passwords."""
+    """Load local demo credentials from environment; never ship shared passwords."""
     return {
         "alice_eng": {
             "username": "alice_eng",
@@ -253,19 +254,42 @@ async def upload_document(
         "uploaded_by": admin_user["username"],
     })
 
-    # Keep the original filename in the indexed payload so source citations remain useful.
-    file_path.write_text(content, encoding="utf-8")
-    ingestion_pipeline.ingest_file(
-        file_path=file_path,
-        allowed_roles=roles_list,
-        clearance_level=clearance_level,
-    )
+    temp_path = None
+    temp_manifest_path = None
+    try:
+        # Stage content outside the manifest path and keep the public source name
+        # stable. The indexer replaces prior chunks for this doc_id before upsert.
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix=".upload-",
+            suffix=Path(filename).suffix.lower(),
+            dir=data_dir,
+            delete=False,
+        ) as staged_file:
+            staged_file.write(content)
+            temp_path = Path(staged_file.name)
 
-    temporary_manifest = manifest_path.with_suffix(".json.tmp")
-    temporary_manifest.write_text(
-        json.dumps(updated_manifest, indent=2), encoding="utf-8"
-    )
-    os.replace(temporary_manifest, manifest_path)
+        temp_manifest_path = manifest_path.with_name(
+            f".{manifest_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        temp_manifest_path.write_text(
+            json.dumps(updated_manifest, indent=2), encoding="utf-8"
+        )
+
+        ingestion_pipeline.ingest_file(
+            file_path=temp_path,
+            allowed_roles=roles_list,
+            clearance_level=clearance_level,
+            doc_id=f"doc-{Path(filename).stem}",
+            source_name=filename,
+        )
+        os.replace(temp_path, file_path)
+        os.replace(temp_manifest_path, manifest_path)
+    finally:
+        for leftover in (temp_path, temp_manifest_path):
+            if leftover is not None and leftover.exists():
+                leftover.unlink()
 
     return {
         "status": "success",
