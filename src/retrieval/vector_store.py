@@ -72,7 +72,8 @@ class QdrantVectorStore:
         """Run similarity-ranked dense search with Qdrant-side policy filtering."""
         if not user_roles or user_clearance < 1 or top_k < 1 or not query.strip():
             return []
-        query_vector = self.encoder.encode(query, convert_to_tensor=False).tolist()
+        encoded_query = self.encoder.encode(query, convert_to_tensor=False)
+        query_vector = encoded_query.tolist() if hasattr(encoded_query, "tolist") else list(encoded_query)
         response = self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
