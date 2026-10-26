@@ -73,15 +73,15 @@ class QdrantVectorStore:
         if not user_roles or user_clearance < 1 or top_k < 1 or not query.strip():
             return []
         query_vector = self.encoder.encode(query, convert_to_tensor=False).tolist()
-        hits = self.client.search(
+        response = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             query_filter=self._build_rbac_filter(user_roles, user_clearance),
             limit=top_k,
             with_payload=True,
             with_vectors=False,
         )
-        return [self._format_point(hit) for hit in hits]
+        return [self._format_point(hit) for hit in response.points]
 
     def list_authorized_with_rbac(
         self, user_roles: List[str], user_clearance: int

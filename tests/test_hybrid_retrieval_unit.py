@@ -100,3 +100,51 @@ def test_rbac_filter_requires_role_and_clearance():
     assert set(query_filter.must[0].match.any) == {"engineering", "hr"}
     assert query_filter.must[1].key == "clearance_level"
     assert query_filter.must[1].range.lte == 3
+
+
+
+def test_dense_search_uses_filtered_query_points_api():
+    from types import SimpleNamespace
+
+    class Encoder:
+        def encode(self, query, convert_to_tensor=False):
+            assert query == "security policy"
+            return [0.1, 0.2, 0.3]
+
+    class FakeClient:
+        def __init__(self):
+            self.kwargs = None
+
+        def query_points(self, **kwargs):
+            self.kwargs = kwargs
+            return SimpleNamespace(points=[
+                SimpleNamespace(
+                    id="p1",
+                    score=0.91,
+                    payload={
+                        "text": "Security policy",
+                        "source": "security.txt",
+                        "doc_id": "doc-security",
+                        "allowed_roles": ["engineering"],
+                        "clearance_level": 2,
+                    },
+                )
+            ])
+
+    store = QdrantVectorStore()
+    fake_client = FakeClient()
+    store._client = fake_client
+    store._encoder = Encoder()
+
+    results = store.search_dense_with_rbac(
+        query="security policy",
+        user_roles=["engineering"],
+        user_clearance=2,
+        top_k=5,
+    )
+
+    assert fake_client.kwargs["limit"] == 5
+    assert fake_client.kwargs["with_payload"] is True
+    assert len(fake_client.kwargs["query_filter"].must) == 2
+    assert results[0]["id"] == "p1"
+    assert results[0]["score"] == 0.91
