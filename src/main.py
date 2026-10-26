@@ -244,11 +244,17 @@ async def upload_document(
                 detail="The document manifest is invalid; repair it before uploading.",
             ) from exc
 
+    existing_entry = next(
+        (item for item in manifest_data if item.get("filename") == filename), {}
+    )
+    # Reuse custom manifest IDs so old indexed chunks are replaced, not orphaned.
+    stable_doc_id = existing_entry.get("doc_id") or f"doc-{Path(filename).stem}"
     updated_manifest = [
         item for item in manifest_data if item.get("filename") != filename
     ]
     updated_manifest.append({
         "filename": filename,
+        "doc_id": stable_doc_id,
         "allowed_roles": roles_list,
         "clearance_level": clearance_level,
         "uploaded_by": admin_user["username"],
@@ -263,7 +269,7 @@ async def upload_document(
             mode="w",
             encoding="utf-8",
             prefix=".upload-",
-            suffix=Path(filename).suffix.lower(),
+            suffix=".tmp",
             dir=data_dir,
             delete=False,
         ) as staged_file:
@@ -281,7 +287,7 @@ async def upload_document(
             file_path=temp_path,
             allowed_roles=roles_list,
             clearance_level=clearance_level,
-            doc_id=f"doc-{Path(filename).stem}",
+            doc_id=stable_doc_id,
             source_name=filename,
         )
         os.replace(temp_path, file_path)
