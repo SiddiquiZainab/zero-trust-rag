@@ -38,24 +38,31 @@ def reciprocal_rank_fusion(
 def rank_with_bm25(
     query: str, authorized_documents: Sequence[Mapping[str, Any]], top_k: int
 ) -> List[Dict[str, Any]]:
-    """Rank only the already-authorized document set with BM25."""
+    """Rank documents with query-term overlap from the already-authorized corpus.
+
+    BM25 scores can be zero for matching terms in tiny corpora because of IDF.
+    Retain actual lexical matches even in that case; unrelated documents are
+    still excluded by requiring at least one query token to overlap.
+    """
     terms = tokenize(query)
     if not terms or not authorized_documents or top_k < 1:
         return []
     tokenized_corpus = [tokenize(str(doc.get("text", ""))) for doc in authorized_documents]
     if not any(tokenized_corpus):
         return []
+
     bm25 = BM25Okapi(tokenized_corpus)
     scores = bm25.get_scores(terms)
+    query_terms = set(terms)
     ranked = []
     for index, score in enumerate(scores):
-        numeric_score = float(score)
-        if numeric_score <= 0:
+        if not query_terms.intersection(tokenized_corpus[index]):
             continue
         document = dict(authorized_documents[index])
-        document["bm25_score"] = numeric_score
-        document["score"] = numeric_score
+        document["bm25_score"] = float(score)
+        document["score"] = float(score)
         ranked.append(document)
+
     return sorted(ranked, key=lambda item: item["bm25_score"], reverse=True)[:top_k]
 
 

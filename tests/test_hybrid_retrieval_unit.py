@@ -35,7 +35,6 @@ def test_bm25_ranks_query_terms_above_unrelated_documents():
     results = rank_with_bm25("quarterly revenue report", documents, top_k=2)
     assert results
     assert results[0]["id"] == "matching"
-    assert results[0]["bm25_score"] > 0
 
 
 def test_hybrid_engine_calls_both_authorized_retrievers():
