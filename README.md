@@ -1,414 +1,215 @@
 # Zero-Trust RAG
 
-A privacy-first Retrieval-Augmented Generation (RAG) system built on the principle of zero-trust: users only see documents they are explicitly authorized to access. All processing happens on-premises, from embedding to final answer generation.
+**A security-focused reference implementation of enterprise RAG with server-enforced document access control, hybrid retrieval, and local model inference.**
 
-## How It Works
+The project explores a practical question: how do you retrieve useful internal knowledge without letting a user see documents their role or clearance does not permit?
 
-The system enforces strict access control at every layer. No document is retrieved, processed, or returned unless the requesting user's roles intersect with the document's allowed roles.
+This is a learning and portfolio project, not a certified security product. The demo authentication store is intentionally simple; use a production identity provider, persistent user store, secrets manager, network controls, and a security review before adapting this design to a real environment.
 
-### Architecture Flow
+## What it demonstrates
 
-```
-┌─────────────────┐
-│   USER CLIENT   │
-│                 │
-│ • Authenticates │
-│   via JWT/API   │
-│   Key           │
-│ • Sends query   │
-│   + user_id +   │
-│   roles         │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────┐
-│   API GATEWAY / FASTAPI     │
-│                             │
-│ 1. Validate JWT / Extract   │
-│    user roles               │
-│ 2. Generate dense embedding │
-│    (SentenceTransformers)   │
-│ 3. Build BM25 sparse vector │
-│    from query tokens         │
-└────────┬────────────────────┘
-         │
-         ▼
-┌─────────────────────────────┐
-│   ON-PREM VECTOR STORE      │
-│        (Qdrant)             │
-│                             │
-│ • Hybrid Search:            │
-│   Reciprocal Rank Fusion    │
-│   (RRF) of dense + BM25     │
-│ • Strict Pre-Filtering:     │
-│   Payload match on          │
-│   `allowed_roles` INTERSECT │
-│   `user_roles`              │
-└────────┬────────────────────┘
-         │
-         │  [ Authorized Documents Only ]
-         ▼
-┌─────────────────────────────┐
-│   LOCAL LLM RUNTIME         │
-│   (Ollama / vLLM)           │
-│                             │
-│ • Fully local models        │
-│   (e.g., Llama-3-8B)        │
-│ • Context payload grounded  │
-│   solely on retrieved       │
-│   filtered chunks           │
-└─────────────────────────────┘
-```
+- **Policy-filtered retrieval:** role intersection and clearance checks are sent to Qdrant before document payloads are returned.
+- **Hybrid ranking:** dense vector similarity and BM25 lexical ranking are merged with Reciprocal Rank Fusion (RRF).
+- **Server-side identity context:** the API derives roles and clearance from a verified token and configured user record, not from fields in a user query.
+- **Local inference path:** Qdrant, embeddings, and Ollama can run within the Docker setup.
+- **Fail-closed empty context:** when retrieval returns no authorized context, the API returns a fixed insufficient-information response without calling the LLM.
+- **Inspectable evidence:** responses include the names of retrieved source documents.
+- **Automated checks:** deterministic unit tests cover rank fusion, lexical ranking, and no-role behavior.
 
-### Zero-Trust Guarantees
+## Architecture
 
-- **No cross-tenant leakage**: Documents are filtered by role before any retrieval or generation occurs.
-- **On-prem only**: Embeddings, search, and LLM inference all run inside your infrastructure.
-- **Auditable**: Every request carries a user identity and role set, enabling full traceability.
+~~~mermaid
+flowchart TD
+    U[User / Streamlit UI] -->|Credentials| A[FastAPI Authentication]
+    A -->|Signed JWT| U
+    U -->|JWT + Question| API[FastAPI Query API]
+    API --> C[Server-side User Context]
+    C --> D[Qdrant Dense Search]
+    C --> E[Qdrant Scroll of Authorized Payloads]
+    D -->|Role + clearance filter| F[Dense Candidates]
+    E -->|Role + clearance filter| G[Authorized Corpus]
+    G --> H[BM25 Ranking]
+    F --> I[Reciprocal Rank Fusion]
+    H --> I
+    I -->|Authorized context only| J{Any results?}
+    J -->|No| K[Fixed insufficient-context response]
+    J -->|Yes| L[Ollama LLM]
+    L --> M[Answer + retrieved source names]
+~~~
 
-## Key Components
+**Important implementation trade-off:** the reference BM25 path scrolls the authorized Qdrant payloads and ranks them in the API process. This is easy to inspect and useful for a small demo corpus, but it is not designed for large-scale corpora. For production-sized data, use a dedicated lexical index or native sparse-vector retrieval and benchmark the full query path.
 
-| Component | Responsibility |
-|-----------|----------------|
-| `src/auth/rbac.py` | Role validation and context injection |
-| `src/ingestion/chunker.py` | Document parsing and chunking policy |
-| `src/ingestion/pipeline.py` | Metadata tagging and batch upload |
-| `src/retrieval/vector_store.py` | Qdrant client and collection setup |
-| `src/retrieval/hybrid_search.py` | Dense + BM25 fusion with payload filtering |
-| `src/engine/llm.py` | Local Ollama/vLLM HTTP wrapper |
-| `src/engine/rag_chain.py` | Complete execution pipeline |
+## Stack
 
-## Prerequisites
+| Component | Purpose |
+|---|---|
+| Python / FastAPI | API and request validation |
+| JWT | Demo authentication token |
+| Qdrant | Dense vector store and pre-filtered payload retrieval |
+| Sentence Transformers | Text embeddings |
+| BM25 + RRF | Lexical ranking and fusion with dense results |
+| Ollama | Local language-model inference |
+| Streamlit | Browser-based demo UI |
+| Docker Compose | Local service orchestration |
+| pytest / GitHub Actions | Deterministic unit tests and CI |
 
-- **Docker** and **Docker Compose** (v2.0+)
-- **Git** for cloning the repository
-- **4GB+ RAM** available for containers (8GB+ recommended for LLM)
-- **Ports 6333, 6334, 8000, 11434** available on host
+## Quick start with Docker
 
-## Quick Start (Docker Compose)
+### 1. Requirements
 
-### 1. Clone the Repository
+- Docker Desktop or Docker Engine with Compose v2
+- Git
+- Recommended: 8 GB+ RAM if you plan to run a local LLM
 
-```bash
-git clone <repository-url>
+### 2. Clone and configure
+
+~~~bash
+git clone https://github.com/SiddiquiZainab/zero-trust-rag.git
 cd zero-trust-rag
-```
+cp .env.example .env
+~~~
 
-### 2. Configure Environment Variables
+Generate a unique JWT signing key:
 
-Create a `.env` file in the project root with your configuration:
+~~~bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+~~~
 
-```bash
-# JWT Secret (CHANGE IN PRODUCTION!)
-JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+Edit .env. Replace every replace_with value with your own unique value. Use different passwords for the three demo users, and never commit .env. The API intentionally exits at startup if required secrets are missing or still look like placeholders.
 
-# Qdrant Vector Database
-QDRANT_HOST=qdrant
-QDRANT_PORT=6333
+Required variables:
 
-# Ollama LLM Service
-OLLAMA_HOST=http://ollama:11434
-OLLAMA_MODEL=llama3
+| Variable | Purpose |
+|---|---|
+| JWT_SECRET_KEY | Random JWT signing secret, at least 32 characters |
+| DEMO_ALICE_PASSWORD | Password for the engineering demo account |
+| DEMO_HR_PASSWORD | Password for the HR demo account |
+| DEMO_ADMIN_PASSWORD | Password for the document-upload demo account |
 
-# Embedding Model
-EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-```
+These are local demonstration identities, not a production user-management system.
 
-### 3. Start the Stack
+### 3. Start services
 
-```bash
-# Build and start all services
-docker-compose -f docker/docker-compose.yml up --build -d
+Run from the repository root:
 
-# View logs
-docker-compose -f docker/docker-compose.yml logs -f
+~~~bash
+docker compose --env-file .env -f docker/docker-compose.yml up --build -d
+docker compose --env-file .env -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml logs -f rag_api
+~~~
 
-# Check service health
-docker-compose -f docker/docker-compose.yml ps
-```
+The API, UI, Qdrant, and Ollama ports are bound to localhost by the Compose configuration. Do not expose the services to an untrusted network without appropriate authentication, TLS, and network controls.
 
-### 4. Pull the LLM Model (First Run)
+### 4. Pull the model and index the sample corpus
 
-```bash
-# Pull the default llama3 model into Ollama
+~~~bash
 docker exec zero_trust_ollama ollama pull llama3
-
-# Or pull a different model
-docker exec zero_trust_ollama ollama pull mistral
-```
-
-### 5. Ingest Documents
-
-```bash
-# Run the ingestion pipeline to populate the vector store
 docker exec zero_trust_fastapi python -m src.ingestion.pipeline
-```
+~~~
 
-### 6. Access the Services
+The embedding model is downloaded by Sentence Transformers on first use. Model downloads require network access during initial setup unless you pre-stage the model.
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| **API** | http://localhost:8000 | FastAPI REST API |
-| **API Docs** | http://localhost:8000/docs | Swagger UI |
-| **Streamlit UI** | http://localhost:8501 | Web chat interface |
-| **Qdrant Dashboard** | http://localhost:6333/dashboard | Vector DB management |
-| **Ollama API** | http://localhost:11434 | LLM inference endpoint |
+### 5. Open the demo
 
-## Manual Development Setup
+- Streamlit UI: http://localhost:8501
+- FastAPI docs: http://localhost:8000/docs
+- API health: http://localhost:8000/health
+- Qdrant dashboard: http://localhost:6333/dashboard
 
-### 1. Create Virtual Environment
+Sign in with username alice_eng, bob_hr, or admin_user and the unique password you configured for that account in .env. Passwords are not embedded in the repository or UI.
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+## Run the deterministic unit tests
 
-### 2. Install Dependencies
+These tests do not start Qdrant, download an embedding model, or require Ollama:
 
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
+~~~bash
+python -m pip install -r requirements-test.txt
+python -m pytest -q tests/test_hybrid_retrieval_unit.py
+~~~
 
-### 3. Start Required Services
+The same focused test file runs in GitHub Actions. The older tests in tests/test_rbac_leak.py and tests/test_hybrid_search.py exercise a live RAG stack and require sample data, Qdrant, the embedding model, and an accessible LLM. They are integration-style checks, not part of the lightweight CI job.
 
-```bash
-# Start Qdrant (vector database)
-docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant:v1.9.2
+## Access-control model
 
-# Start Ollama (LLM runtime)
-docker run -d --name ollama -p 11434:11434 -v ollama_data:/root/.ollama ollama/ollama:latest
-docker exec ollama ollama pull llama3
-```
+Each stored chunk carries metadata such as:
 
-### 4. Configure Environment
+~~~json
+{
+  "doc_id": "doc-sec-001",
+  "source": "security_policy.txt",
+  "allowed_roles": ["security", "engineering"],
+  "clearance_level": 2,
+  "text": "Example chunk content"
+}
+~~~
 
-```bash
-export QDRANT_HOST=localhost
-export QDRANT_PORT=6333
-export OLLAMA_HOST=http://localhost:11434
-export OLLAMA_MODEL=llama3
-export JWT_SECRET_KEY=your-secret-key
-```
+For each retrieval request, the query filter requires both:
 
-### 5. Ingest Documents
+1. At least one match between the document's allowed_roles and the authenticated user's roles.
+2. The document's clearance_level to be less than or equal to the user's clearance.
 
-```bash
-python -m src.ingestion.pipeline
-```
+The same filter is applied to dense search and to the payloads considered by BM25. An empty role list returns no results. Authorization must remain enforced by the API and data layer; UI visibility is not a security boundary.
 
-### 6. Run the API Server
+## API example
 
-```bash
-python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-```
+First, request a token with your configured password:
 
-### 7. Run the Streamlit UI (Optional)
-
-```bash
-streamlit run ui/app.py
-```
-
-## API Usage
-
-### Authentication
-
-```bash
-# Get access token
-curl -X POST "http://localhost:8000/token" \
+~~~bash
+curl -X POST http://localhost:8000/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=alice_eng&password=password123"
+  --data-urlencode "username=alice_eng" \
+  --data-urlencode "password=YOUR_CONFIGURED_PASSWORD"
+~~~
 
-# Response: {"access_token": "eyJ...", "token_type": "bearer"}
-```
+Then query with the returned access token:
 
-### Query the RAG Engine
-
-```bash
-# Use the token from authentication
-curl -X POST "http://localhost:8000/query" \
+~~~bash
+curl -X POST http://localhost:8000/query \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What is the security policy for data handling?"}'
-```
+  -d '{"query":"What is the security policy for data handling?"}'
+~~~
 
-### Health Check
+The query endpoint accepts only the question. Role and clearance data are taken from the verified token subject and the server-side demo user map.
 
-```bash
-curl http://localhost:8000/health
-```
+## Repository layout
 
-## Default Test Users
+~~~text
+src/
+  auth/          # JWT decoding and role/clearance dependency
+  engine/        # RAG chain and Ollama wrapper
+  ingestion/     # Chunking, metadata, and indexing pipeline
+  retrieval/     # Qdrant filtering, dense ranking, BM25, and RRF
+tests/           # Unit and integration-style checks
+ui/              # Streamlit demo
+docker/          # Dockerfiles and Compose stack
+.github/workflows/ci.yml
+~~~
 
-| Username | Password | Roles | Clearance |
-|----------|----------|-------|-----------|
-| `alice_eng` | `password123` | `["engineering"]` | 1 |
-| `bob_hr` | `password123` | `["hr"]` | 4 |
+## Security notes and limitations
 
-## Project Structure
+- This repository is a **reference implementation**, not a security certification or a production-ready identity platform.
+- Demo passwords are loaded from environment variables but stored in a simple in-memory map; production authentication should use an identity provider and a proper credential store.
+- Use TLS, managed secrets, audit logging, rate limits, dependency scanning, data retention controls, and a formal threat model before real deployment.
+- Document content is untrusted input. Prompt instructions reduce some risks but are not a complete prompt-injection defense.
+- Hybrid retrieval has not been published with a benchmark score. Build a labeled query set and report recall@k, MRR/nDCG, latency, and access-policy tests before making performance claims.
+- Qdrant filtering is part of the data access design, but deployment/network permissions and all ingestion paths must also be tested as part of an end-to-end security review.
+- Only upload non-sensitive test documents to the public demo.
 
-```
-zero-trust-rag/
-├── .dockerignore           # Docker ignore patterns
-├── .gitignore              # Git ignore patterns
-├── README.md               # This file
-├── requirements.txt        # Python dependencies
-├── data/                   # Document data & manifests
-│   ├── manifest.json       # Document metadata & RBAC config
-│   ├── security_policy.txt
-│   └── ...
-├── docker/                 # Docker configuration
-│   ├── docker-compose.yml  # Multi-service orchestration
-│   ├── Dockerfile.api      # FastAPI service image
-│   └── Dockerfile.llm      # Ollama LLM service image
-├── src/                    # Source code
-│   ├── __init__.py
-│   ├── config.py           # Centralized configuration (Pydantic Settings)
-│   ├── main.py             # FastAPI application entry point
-│   ├── auth/               # Authentication & RBAC
-│   │   ├── __init__.py
-│   │   └── rbac.py
-│   ├── engine/             # RAG execution engine
-│   │   ├── __init__.py
-│   │   ├── llm.py          # Ollama LLM wrapper
-│   │   └── rag_chain.py    # End-to-end RAG pipeline
-│   ├── ingestion/          # Document ingestion pipeline
-│   │   ├── __init__.py
-│   │   ├── chunker.py      # Text chunking & embedding
-│   │   └── pipeline.py     # Batch ingestion orchestrator
-│   └── retrieval/          # Vector search & retrieval
-│       ├── __init__.py
-│       ├── hybrid_search.py # Dense + BM25 hybrid search
-│       └── vector_store.py  # Qdrant client & RBAC filtering
-├── tests/                  # Test suite
-│   ├── test_hybrid_search.py
-│   └── test_rbac_leak.py
-└── ui/                     # Streamlit web interface
-    ├── __init__.py
-    └── app.py
-```
+## Roadmap
 
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET_KEY` | `super-secret-zero-trust-key-change-in-prod` | Secret for JWT signing |
-| `QDRANT_HOST` | `localhost` | Qdrant server hostname |
-| `QDRANT_PORT` | `6333` | Qdrant HTTP port |
-| `QDRANT_COLLECTION_NAME` | `enterprise_rbac_docs` | Vector collection name |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama API endpoint |
-| `OLLAMA_MODEL` | `llama3` | LLM model name |
-| `EMBEDDING_MODEL_NAME` | `BAAI/bge-small-en-v1.5` | Sentence transformer model |
-| `LLM_TEMPERATURE` | `0.2` | LLM sampling temperature |
-| `DEFAULT_TOP_K` | `4` | Default retrieval count |
-
-### Document Ingestion Manifest
-
-The `data/manifest.json` file controls document ingestion with RBAC metadata:
-
-```json
-[
-  {
-    "filename": "security_policy.txt",
-    "doc_id": "doc-sec-001",
-    "allowed_roles": ["security", "engineering", "management"],
-    "clearance_level": 2
-  },
-  {
-    "filename": "hr_policy.txt",
-    "doc_id": "doc-hr-001",
-    "allowed_roles": ["hr", "management"],
-    "clearance_level": 4
-  }
-]
-```
-
-## Testing
-
-### Run All Tests
-
-```bash
-# Using Docker
-docker exec zero_trust_fastapi pytest tests/ -v
-
-# Local development
-pytest tests/ -v
-```
-
-### Test Categories
-
-- **`test_rbac_leak.py`**: Verifies zero-trust guarantees - unauthorized users cannot access restricted documents
-- **`test_hybrid_search.py`**: Benchmarks retrieval accuracy and relevance
-
-## Troubleshooting
-
-### Common Issues
-
-**1. Ollama model not found**
-```bash
-docker exec zero_trust_ollama ollama pull llama3
-```
-
-**2. Qdrant connection refused**
-```bash
-# Check if Qdrant is healthy
-docker logs zero_trust_qdrant
-# Restart if needed
-docker-compose -f docker/docker-compose.yml restart qdrant
-```
-
-**3. Port conflicts**
-```bash
-# Check what's using the ports
-lsof -i :6333 -i :8000 -i :11434
-# Stop conflicting services or change ports in docker-compose.yml
-```
-
-**4. Out of memory (OOM) errors**
-- Increase Docker memory limit (Docker Desktop: Settings > Resources > Memory)
-- Use a smaller model: `OLLAMA_MODEL=llama3.2:1b` or `phi3:mini`
-
-**5. Embedding model download fails**
-```bash
-# Pre-download the model
-docker exec zero_trust_fastapi python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
-```
-
-### Logs
-
-```bash
-# View all service logs
-docker-compose -f docker/docker-compose.yml logs -f
-
-# View specific service logs
-docker-compose -f docker/docker-compose.yml logs -f rag_api
-docker-compose -f docker/docker-compose.yml logs -f ollama
-docker-compose -f docker/docker-compose.yml logs -f qdrant
-```
-
-## Security Considerations
-
-1. **Change default JWT secret** in production: `JWT_SECRET_KEY`
-2. **Use HTTPS** in production with reverse proxy (nginx, Traefik)
-3. **Restrict network access** - services communicate on isolated Docker network
-4. **Rotate secrets** regularly
-5. **Audit logs** - monitor access patterns
-6. **Principle of least privilege** - assign minimal roles/clearance
+- Add a labeled retrieval evaluation dataset and report metrics for dense-only, BM25-only, and RRF.
+- Add integration tests using a disposable Qdrant instance and a stub LLM.
+- Replace the demo user map with an identity-provider integration.
+- Add structured audit events and request correlation IDs.
+- Evaluate a dedicated lexical index or Qdrant sparse vectors for larger corpora.
 
 ## License
 
-MIT License - see LICENSE file for details.
+See LICENSE.
 
-## Contributing
+## Author
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `pytest tests/ -v`
-5. Submit a pull request
+**Zainab Siddiqui** — AI/ML Engineer focused on secure RAG, agentic workflows, and reliable LLM applications.
 
-## Support
-
-For issues and questions, please open a GitHub issue.
+- GitHub: [@SiddiquiZainab](https://github.com/SiddiquiZainab)

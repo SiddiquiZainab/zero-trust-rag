@@ -1,28 +1,26 @@
-# FastAPI & Server
+# API and configuration
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 pydantic>=2.6.0
 pydantic-settings>=2.2.0
 
-# Security & Authentication
+# Authentication and uploads
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.9
 
-# Vector Database & Retrieval
+# Retrieval
 qdrant-client>=1.10.0
 sentence-transformers>=2.5.0
-#torch>=2.2.0
+rank-bm25>=0.2.2
+langchain-text-splitters
 
-# LLM Communications
+# Local LLM communication
 requests>=2.31.0
 
-# Testing & Utilities
+# Tests and UI
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
 httpx>=0.27.0
 python-dotenv>=1.0.1
-
-#Ui
 streamlit
-langchain-text-splitters
