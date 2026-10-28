@@ -61,8 +61,9 @@ def ingest_document(
         raise ValueError("Cannot index an empty document.")
     if not allowed_roles:
         raise ValueError("At least one allowed role is required.")
-    if not 1 <= clearance_level <= 5:
-        raise ValueError("clearance_level must be between 1 and 5.")
+    # Clearance 0 is valid for public documents in data/manifest.json.
+    if not 0 <= clearance_level <= 5:
+        raise ValueError("clearance_level must be between 0 and 5.")
 
     encoder = _get_encoder()
     qdrant = _get_qdrant()
