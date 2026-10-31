@@ -39,8 +39,8 @@ def _required_config_value(name: str, minimum_length: int) -> str:
 SECRET_KEY = _required_config_value("JWT_SECRET_KEY", 32)
 
 
-def _build_demo_users() -> dict:
-    """Load local demo credentials from environment; never ship shared passwords."""
+def _build_configured_users() -> dict:
+    """Load local account credentials from environment; never ship shared passwords."""
     return {
         "alice_eng": {
             "username": "alice_eng",
@@ -63,7 +63,7 @@ def _build_demo_users() -> dict:
     }
 
 
-MOCK_USERS_DB = _build_demo_users()
+USERS_BY_USERNAME = _build_configured_users()
 rag_chain: Optional[RAGChain] = None
 ingestion_pipeline: Optional[IngestionPipeline] = None
 
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Zero-Trust RBAC RAG API",
-    description="Reference implementation of document-level access-controlled retrieval-augmented generation.",
+    description="Document-level access-controlled retrieval-augmented generation API.",
     version="1.1.0",
     lifespan=lifespan,
 )
@@ -121,16 +121,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
-        if username is None or username not in MOCK_USERS_DB:
+        if username is None or username not in USERS_BY_USERNAME:
             raise credentials_exception
         # Authorization attributes come from the server-side user map.
-        return MOCK_USERS_DB[username]
+        return USERS_BY_USERNAME[username]
     except JWTError as exc:
         raise credentials_exception from exc
 
 
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    """Restrict document uploads to the configured admin demo identity."""
+    """Restrict document uploads to the configured administrator identity."""
     if "admin" not in current_user.get("roles", []):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -141,7 +141,7 @@ def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 
 @app.post("/token", response_model=Token, tags=["Auth"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = MOCK_USERS_DB.get(form_data.username)
+    user = USERS_BY_USERNAME.get(form_data.username)
     provided = form_data.password.encode("utf-8")
     expected = user["password"].encode("utf-8") if user else b"invalid-user-password"
     if not hmac.compare_digest(expected, provided):
@@ -215,7 +215,7 @@ async def upload_document(
 
     content_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Upload exceeds the 1 MiB demo limit.")
+        raise HTTPException(status_code=413, detail="Upload exceeds the 1 MiB limit.")
     try:
         content = content_bytes.decode("utf-8")
     except UnicodeDecodeError as exc:
