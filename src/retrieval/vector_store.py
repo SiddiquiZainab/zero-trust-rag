@@ -90,9 +90,9 @@ class QdrantVectorStore:
         """
         Page through the authorized corpus for BM25 ranking.
 
-        This reference implementation is intended for a small demo corpus. For
-        large corpora, use a dedicated lexical index or native sparse retrieval
-        rather than scanning every authorized payload for each question.
+        The current BM25 path is designed for smaller corpora. For larger datasets,
+        use a dedicated lexical index or native sparse retrieval rather than
+        scanning every authorized payload for each question.
         """
         if not user_roles or user_clearance < 1:
             return []
