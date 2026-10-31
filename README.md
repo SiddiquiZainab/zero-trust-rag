@@ -84,9 +84,9 @@ Required variables:
 | Variable | Purpose |
 |---|---|
 | JWT_SECRET_KEY | Random JWT signing secret, at least 32 characters |
-| DEMO_ALICE_PASSWORD | Password for the engineering local account |
-| DEMO_HR_PASSWORD | Password for the HR local account |
-| DEMO_ADMIN_PASSWORD | Password for the document-upload administrator account |
+| LOCAL_ALICE_PASSWORD | Password for the engineering local account |
+| LOCAL_HR_PASSWORD | Password for the HR local account |
+| LOCAL_ADMIN_PASSWORD | Password for the document-upload administrator account |
 
 The supplied local account configuration uses predefined identities and an in-memory user map. For an organization deployment, integrate an identity provider and a persistent source of user, role, and clearance attributes before connecting the service to protected information.
 
@@ -102,7 +102,7 @@ docker compose --env-file .env -f docker/docker-compose.yml logs -f rag_api
 
 The API, UI, Qdrant, and Ollama ports are bound to localhost by the Compose configuration. Do not expose the services to an untrusted network without appropriate authentication, TLS, and network controls.
 
-### 4. Pull the model and index the sample corpus
+### 4. Pull the model and index the included document corpus
 
 ~~~bash
 docker exec zero_trust_ollama ollama pull llama3
