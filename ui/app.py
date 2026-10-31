@@ -36,7 +36,7 @@ with st.sidebar:
     if not st.session_state["token"]:
         st.subheader("Sign in")
         username = st.text_input("Username", placeholder="alice_eng")
-        password = st.text_input("Password", type="password", placeholder="Your local demo password")
+        password = st.text_input("Password", type="password", placeholder="Your account password")
 
         if st.button("Log In"):
             if not username.strip() or not password:
@@ -61,7 +61,7 @@ with st.sidebar:
                         st.success("Authenticated successfully.")
                         st.rerun()
                     else:
-                        st.error("Sign-in failed. Check the username and local demo password.")
+                        st.error("Sign-in failed. Check the username and account password.")
                 except requests.RequestException:
                     st.error("Could not reach the API. Check that the Docker services are running.")
     else:
@@ -84,7 +84,7 @@ with st.sidebar:
 st.title("Enterprise RBAC Knowledge Base")
 
 if not st.session_state["token"]:
-    st.info("Sign in using one of the local demo accounts configured in .env.")
+    st.info("Sign in using one of the configured local accounts in .env.")
 else:
     tab1, tab2 = st.tabs(["💬 Knowledge Base Chat", "📤 Admin Document Upload"])
 
