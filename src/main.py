@@ -23,8 +23,12 @@ MAX_UPLOAD_BYTES = 1_048_576
 MIN_PASSWORD_LENGTH = 12
 
 
-def _required_config_value(name: str, minimum_length: int) -> str:
+def _required_config_value(
+    name: str, minimum_length: int, legacy_name: Optional[str] = None
+) -> str:
     value = os.getenv(name, "").strip()
+    if not value and legacy_name:
+        value = os.getenv(legacy_name, "").strip()
     lowered = value.lower()
     if len(value) < minimum_length or any(
         marker in lowered for marker in ("replace_with", "change_me", "your_secret")
@@ -44,19 +48,25 @@ def _build_configured_users() -> dict:
     return {
         "alice_eng": {
             "username": "alice_eng",
-            "password": _required_config_value("DEMO_ALICE_PASSWORD", MIN_PASSWORD_LENGTH),
+            "password": _required_config_value(
+                "LOCAL_ALICE_PASSWORD", MIN_PASSWORD_LENGTH, legacy_name="DEMO_ALICE_PASSWORD"
+            ),
             "roles": ["engineering"],
             "clearance": 2,
         },
         "bob_hr": {
             "username": "bob_hr",
-            "password": _required_config_value("DEMO_HR_PASSWORD", MIN_PASSWORD_LENGTH),
+            "password": _required_config_value(
+                "LOCAL_HR_PASSWORD", MIN_PASSWORD_LENGTH, legacy_name="DEMO_HR_PASSWORD"
+            ),
             "roles": ["hr"],
             "clearance": 4,
         },
         "admin_user": {
             "username": "admin_user",
-            "password": _required_config_value("DEMO_ADMIN_PASSWORD", MIN_PASSWORD_LENGTH),
+            "password": _required_config_value(
+                "LOCAL_ADMIN_PASSWORD", MIN_PASSWORD_LENGTH, legacy_name="DEMO_ADMIN_PASSWORD"
+            ),
             "roles": ["admin", "engineering", "hr"],
             "clearance": 5,
         },
