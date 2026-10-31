@@ -1,19 +1,19 @@
 # Zero-Trust RAG
 
-**A security-focused reference implementation of enterprise RAG with server-enforced document access control, hybrid retrieval, and local model inference.**
+**A security-focused Retrieval-Augmented Generation (RAG) service with server-enforced document authorization, hybrid retrieval, and source attribution.**
 
-The project explores a practical question: how do you retrieve useful internal knowledge without letting a user see documents their role or clearance does not permit?
+Zero-Trust RAG is designed for internal knowledge assistants and private enterprise search workflows where users must only retrieve information permitted by their roles and clearance levels. Authorization is applied in the API and retrieval layer before document context is passed to the language model.
 
-This is a learning and portfolio project, not a certified security product. The demo authentication store is intentionally simple; use a production identity provider, persistent user store, secrets manager, network controls, and a security review before adapting this design to a real environment.
+The application combines FastAPI, Qdrant, Sentence Transformers, BM25, Reciprocal Rank Fusion (RRF), and Ollama, with a Streamlit interface and a Docker Compose deployment profile.
 
-## What it demonstrates
+## Core capabilities
 
-- **Policy-filtered retrieval:** role intersection and clearance checks are sent to Qdrant before document payloads are returned.
-- **Hybrid ranking:** dense vector similarity and BM25 lexical ranking are merged with Reciprocal Rank Fusion (RRF).
-- **Server-side identity context:** the API derives roles and clearance from a verified token and configured user record, not from fields in a user query.
-- **Local inference path:** Qdrant, embeddings, and Ollama can run within the Docker setup.
+- **Policy-filtered retrieval:** role intersection and clearance checks are applied in Qdrant before document payloads are returned.
+- **Hybrid ranking:** dense vector similarity and BM25 lexical ranking are combined using Reciprocal Rank Fusion (RRF).
+- **Server-side identity context:** the API validates a signed token and resolves roles and clearance from server-side account configuration, rather than accepting authorization attributes from a user query.
+- **Local model inference:** Qdrant, embeddings, and Ollama can run within the Docker deployment.
 - **Fail-closed empty context:** when retrieval returns no authorized context, the API returns a fixed insufficient-information response without calling the LLM.
-- **Inspectable evidence:** responses include the names of retrieved source documents.
+- **Source attribution:** responses include the names of the retrieved source documents.
 - **Automated checks:** deterministic unit tests cover rank fusion, lexical ranking, and no-role behavior.
 
 ## Architecture
@@ -37,23 +37,25 @@ flowchart TD
     L --> M[Answer + retrieved source names]
 ~~~
 
-**Important implementation trade-off:** the reference BM25 path scrolls the authorized Qdrant payloads and ranks them in the API process. This is easy to inspect and useful for a small demo corpus, but it is not designed for large-scale corpora. For production-sized data, use a dedicated lexical index or native sparse-vector retrieval and benchmark the full query path.
+### Retrieval design and scaling
 
-## Stack
+The current BM25 implementation scrolls authorized Qdrant payloads and ranks them in the API process. This keeps the policy filter in the retrieval path and is straightforward to inspect, but its corpus size and throughput are constrained by API memory and processing capacity. For larger collections, use a dedicated lexical index or native sparse-vector retrieval, then benchmark the complete query path under representative workloads.
+
+## Technology stack
 
 | Component | Purpose |
 |---|---|
-| Python / FastAPI | API and request validation |
-| JWT | Demo authentication token |
-| Qdrant | Dense vector store and pre-filtered payload retrieval |
+| Python / FastAPI | API, authentication endpoints, and request validation |
+| JWT | Signed API access tokens |
+| Qdrant | Dense vector storage and pre-filtered payload retrieval |
 | Sentence Transformers | Text embeddings |
 | BM25 + RRF | Lexical ranking and fusion with dense results |
 | Ollama | Local language-model inference |
-| Streamlit | Browser-based demo UI |
+| Streamlit | Browser-based application interface |
 | Docker Compose | Local service orchestration |
-| pytest / GitHub Actions | Deterministic unit tests and CI |
+| pytest / GitHub Actions | Automated unit tests and CI |
 
-## Quick start with Docker
+## Run locally with Docker
 
 ### 1. Requirements
 
@@ -75,20 +77,20 @@ Generate a unique JWT signing key:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ~~~
 
-Edit .env. Replace every replace_with value with your own unique value. Use different passwords for the three demo users, and never commit .env. The API intentionally exits at startup if required secrets are missing or still look like placeholders.
+Edit `.env`. Replace every `replace_with` value with a unique value. Use different passwords for the configured local accounts, and never commit `.env`. The API intentionally exits at startup if required secrets are missing or still look like placeholders.
 
 Required variables:
 
 | Variable | Purpose |
 |---|---|
 | JWT_SECRET_KEY | Random JWT signing secret, at least 32 characters |
-| DEMO_ALICE_PASSWORD | Password for the engineering demo account |
-| DEMO_HR_PASSWORD | Password for the HR demo account |
-| DEMO_ADMIN_PASSWORD | Password for the document-upload demo account |
+| DEMO_ALICE_PASSWORD | Password for the engineering local account |
+| DEMO_HR_PASSWORD | Password for the HR local account |
+| DEMO_ADMIN_PASSWORD | Password for the document-upload administrator account |
 
-These are local demonstration identities, not a production user-management system.
+The supplied local account configuration uses predefined identities and an in-memory user map. For an organization deployment, integrate an identity provider and a persistent source of user, role, and clearance attributes before connecting the service to protected information.
 
-### 3. Start services
+### 3. Start the services
 
 Run from the repository root:
 
@@ -109,16 +111,16 @@ docker exec zero_trust_fastapi python -m src.ingestion.pipeline
 
 The embedding model is downloaded by Sentence Transformers on first use. Model downloads require network access during initial setup unless you pre-stage the model.
 
-### 5. Open the demo
+### 5. Access the local services
 
-- Streamlit UI: http://localhost:8501
-- FastAPI docs: http://localhost:8000/docs
+- Streamlit interface: http://localhost:8501
+- FastAPI documentation: http://localhost:8000/docs
 - API health: http://localhost:8000/health
 - Qdrant dashboard: http://localhost:6333/dashboard
 
-Sign in with username alice_eng, bob_hr, or admin_user and the unique password you configured for that account in .env. Passwords are not embedded in the repository or UI.
+Sign in with `alice_eng`, `bob_hr`, or `admin_user` and the unique password configured for that account in `.env`. Passwords are not embedded in the repository or UI.
 
-## Run the deterministic unit tests
+## Run the unit tests
 
 These tests do not start Qdrant, download an embedding model, or require Ollama:
 
@@ -127,7 +129,7 @@ python -m pip install -r requirements-test.txt
 python -m pytest -q tests/test_hybrid_retrieval_unit.py
 ~~~
 
-The same focused test file runs in GitHub Actions. The older tests in tests/test_rbac_leak.py and tests/test_hybrid_search.py exercise a live RAG stack and require sample data, Qdrant, the embedding model, and an accessible LLM. They are integration-style checks, not part of the lightweight CI job.
+The same focused test file runs in GitHub Actions. The tests in `tests/test_rbac_leak.py` and `tests/test_hybrid_search.py` exercise a live RAG stack and require sample data, Qdrant, the embedding model, and an accessible LLM. They are integration-style checks, not part of the lightweight CI job.
 
 ## Access-control model
 
@@ -145,14 +147,14 @@ Each stored chunk carries metadata such as:
 
 For each retrieval request, the query filter requires both:
 
-1. At least one match between the document's allowed_roles and the authenticated user's roles.
-2. The document's clearance_level to be less than or equal to the user's clearance.
+1. At least one match between the document's `allowed_roles` and the authenticated user's roles.
+2. The document's `clearance_level` to be less than or equal to the user's clearance.
 
 The same filter is applied to dense search and to the payloads considered by BM25. An empty role list returns no results. Authorization must remain enforced by the API and data layer; UI visibility is not a security boundary.
 
 ## API example
 
-First, request a token with your configured password:
+Request a token with the password configured for the local account:
 
 ~~~bash
 curl -X POST http://localhost:8000/token \
@@ -170,7 +172,7 @@ curl -X POST http://localhost:8000/query \
   -d '{"query":"What is the security policy for data handling?"}'
 ~~~
 
-The query endpoint accepts only the question. Role and clearance data are taken from the verified token subject and the server-side demo user map.
+The query endpoint accepts only the question. Role and clearance data are taken from the verified token subject and the server-side user configuration.
 
 ## Repository layout
 
@@ -181,26 +183,30 @@ src/
   ingestion/     # Chunking, metadata, and indexing pipeline
   retrieval/     # Qdrant filtering, dense ranking, BM25, and RRF
 tests/           # Unit and integration-style checks
-ui/              # Streamlit demo
+ui/              # Streamlit application
 docker/          # Dockerfiles and Compose stack
 .github/workflows/ci.yml
 ~~~
 
-## Security notes and limitations
+## Security and deployment considerations
 
-- This repository is a **reference implementation**, not a security certification or a production-ready identity platform.
-- Demo passwords are loaded from environment variables but stored in a simple in-memory map; production authentication should use an identity provider and a proper credential store.
-- Use TLS, managed secrets, audit logging, rate limits, dependency scanning, data retention controls, and a formal threat model before real deployment.
-- Document content is untrusted input. Prompt instructions reduce some risks but are not a complete prompt-injection defense.
-- Hybrid retrieval has not been published with a benchmark score. Build a labeled query set and report recall@k, MRR/nDCG, latency, and access-policy tests before making performance claims.
-- Qdrant filtering is part of the data access design, but deployment/network permissions and all ingestion paths must also be tested as part of an end-to-end security review.
-- Only upload non-sensitive test documents to the public demo.
+The retrieval path enforces role and clearance filters, but an organization deployment requires controls that are specific to its identity system, infrastructure, data classification, and threat model.
 
-## Roadmap
+- **Identity and authorization:** the current account map is in memory. Integrate an enterprise identity provider and a persistent, authoritative source for user roles and clearance attributes. Define how role changes, account disablement, and token revocation are propagated.
+- **Secrets and transport:** use a managed secrets service, TLS, restricted network access, and environment-specific configuration. Do not expose local service ports directly to untrusted networks.
+- **Operations:** add structured audit events, request correlation IDs, rate limits, dependency and container scanning, monitoring, backups, and data-retention controls appropriate to the deployment.
+- **Prompt injection and untrusted content:** document content is untrusted input. Prompt instructions can reduce some risks but are not a complete prompt-injection defense. Apply ingestion controls and evaluate attack scenarios against the full application.
+- **Retrieval performance:** no benchmark results are published for the current hybrid retrieval path. Build a labeled query set and measure recall@k, MRR/nDCG, latency, throughput, and access-policy behavior before setting performance targets.
+- **End-to-end access boundaries:** Qdrant filtering is one part of the access-control design. Validate service credentials, collection permissions, ingestion paths, network boundaries, and tenant isolation as part of a deployment security review.
+- **Data handling:** use non-sensitive content in local environments until access, retention, and operational controls have been validated for the target environment.
+
+## Operational extensions
+
+The following are natural extensions when adapting the service to a specific organization:
 
 - Add a labeled retrieval evaluation dataset and report metrics for dense-only, BM25-only, and RRF.
 - Add integration tests using a disposable Qdrant instance and a stub LLM.
-- Replace the demo user map with an identity-provider integration.
+- Replace the local user map with an identity-provider integration.
 - Add structured audit events and request correlation IDs.
 - Evaluate a dedicated lexical index or Qdrant sparse vectors for larger corpora.
 
